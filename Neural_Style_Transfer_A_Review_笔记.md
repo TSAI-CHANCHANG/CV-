@@ -42,7 +42,7 @@ Gram-base表示法是设计用来捕捉全局统计数据并抛出空间排布�
 
 建模并提取风格与内容图片的信息，将他们合并成目标representation，再迭代重建风格化结果。
 
-一般不同的IOB-NST算法是共享同一个IOB-IR（图片重建）技术，但是对于视觉风格的建模千差万别。
+一般不同的IOB-NST算法是共享同一个IOB-IR（图片重建）技术，但是对于视觉风格的建模千差万别。（第一步style modelling千差万别，重建差不多）
 
 共同缺陷就是计算代价极大。
 
@@ -95,3 +95,89 @@ MOB-NST有单模型对应单风格、单模型对应多风格、单模型对应�
 ###### 4.2.2 Multiple-Style-Per-Model Neural Methods
 
 许多画（例如印象派）共享相同的绘画笔刷，只是在色彩上有所不同。提升PSPM的灵活性。
+
+有两种做法：1. 将有限数量的参数与每个风格绑定；2. 仍然只使用类似于PSPM的单网络，但是将style与content同时作为输入。
+
+**1) Tying only a small number of parameters to each style**
+
+使用相同的卷积参数但是缩放与迁移IN（instance normalisation）层的参数就能很有效的对不同风格进行建模。缺点是当学习的风格数量上涨后model的大小也会变得更大。此外也并未解决NST算法在笔刷细节、语义、多样性上的缺陷
+
+**2) Combining both style and content as inputs**
+
+Li 设计了一个选择单元用于风格选择，这是一个N维的one-hot向量。选择单元中每个bit都代表特定的风格。该方法依旧在保留微笑结构的相干性上有局限性。深度信息依旧没解决。
+
+###### 4.2.3 Arbitrary-Style-Per-Model Neural Methods
+
+**1) Non-parametric ASPM with MRFs**
+
+先抽取出内容和风格的activation（这部分会在预训练的VGG网络中计算出），然后他们在比对每个内容patch，寻找最接近的sytle patch，然后交换两者（Style Swap）。程序化结果可以通过使用IOB-IR或者MOB-IR重建结果激励map获得。
+
+内容可以得到很好的保留，但是风格却不能很好的反应。
+
+**2) Parametric ASPM with Summary Statistics**
+
+#### 6 评估方法
+
+有两种评测方法可用于NST领域，分为定性分析(qualitative evaluation)和定量分析(quantitative evaluation).定性分析取决于观测者的审美判定，定量分析则侧重于时间复杂度，loss variation(变异)
+
+##### 6.1 实验准备
+
+介绍了使用的数据集，介绍了几大准则：（1）使用Torch7的同平台；（2）针对不同的算法分配各自的内容和风格的权重；（3）使用作者默认的参数。
+
+#### 7 NST现在的应用
+
+社交媒体用于创作自己的图像 绘画辅助工具 在创作动画电影和电脑游戏时可以节约成本
+
+#### 8 未来挑战
+
+有些NPR(non-photorealistic rendering)里的关键问题依旧留存，作为未来NST研究的挑战。
+
+下文先讨论NPR与NST共同存在的问题，然后探讨NST领域特有的问题。
+
+##### 8.1 分析方法
+
+美学分析是NPR和NST共有的关键问题。第一个大问题就是评价分数会因人而异。第二个大问题是没有标准的评测图片集（用来衡量NST算法）
+
+本文作者使用了NPR的测试集，但是作者认为因为NST算法不像NPR算法那样需要对风格图片有明显的限制，所以NPR的测试集仍然不是好的NST测试集。
+
+寻找一个表现广阔可能属性并附有对所采用原理的详细叙述与图像特征测量值以及作品限制的讨论的benchmark至关重要。
+
+##### 8.2 可解释的NST
+
+NST的过程很像黑盒，使其难于掌控。
+
+###### 8.2.1 Representation disentangling（解離表示）
+
+解离表示的目标是构建一种维度层的可解释表示，即一个或几个特定的维度发生变化只与一个变量的factor有关，对其他factor独立。
+
+对于风格转移，如果有一种表示法能使得所有factor都独立（比如颜色，图像，笔画大小，笔画方向和笔画构成），那么研究者在stylisation的过程中将能够自由的控制。
+
+为了达成这个目标，有监督与非监督两种方法。
+
+监督解离法的基本思想就是利用注释数据来监督输入与属性之间的mapping。然而在NST的情况下，建模和捕捉变量的aforementioned factors相当复杂。比如，我们十分难收集到这么一个图片集：有着不同的笔画方向但是却有着一样的颜色分布、笔画大小和笔画构成。
+
+非监督法则相反的不需要注释，但是该法通常会让解离表示变得不可控制与不可解释。我们无法控制被解码入每个特定维度的东西是什么。
+
+因此为了获得NST中的解离表示，第一要务就是找到如何定义、建模并捕捉NST中复杂的变量的方法。
+
+###### 8.2.2 Normalisation methods
+
+第一个出现的NST的normalisation方法为instance normalisation。当batch normalisation的batch大小为1时等效于instance normalisation。
+
+有研究者认为因为instance normalisation让网络能够丢弃一些内容图像中的冲突信息并因此让学习更简单，所以该法有更良好的表现。
+
+另一种解释是instance normalisation执行了一种style normalisation：normalize 特征统计数据（比如均值与方差）。每个图片可以直接被normalised到目标风格。最终其余网络只需要关心内容损失就行，让其更易于学习。
+
+进阶版：conditional instance normalisation，也就是在instance normalisation layers缩放和转移参数。使用不同的affine参数，参数统计数据可以被normalised到不同的值，与之相关的，每个样本也可以被normalised到不同的风格。
+
+但是成功原因仍然不明。为何feature statistics能够代表风格，或者更进一步，feature statistics能否代表所有风格。这与风格表示的可解释性有关了。
+
+###### 8.2.3 Adversarial examples
+
+有些研究表明深度分类网络很容易就被对抗性实例愚弄。这些对抗性实例是通过给输入图像加上扰动而得到的。
+
+仍然不清楚为何对输入图片加上扰动后，人类仍然能识别，但是对于生成式风格转移网络就会给出如此不同的结果。并且仍然有一些例子在加上扰动后仍然可以被风格转移到目标风格。
+
+##### 8.3 Three-way Trade-off in Neural Style Transfer 
+
+三大因素此消彼长：速度、灵活性、质量
