@@ -10,5 +10,7 @@ Laplacian-Steered Neural Style Transfer
 
 同时本文证明了Laplacian loss项不会影响图片风格化（content/style loss只上升了一点点）
 
-亮点：可以在保证不影响图片风格化的同时，控制生成图片与content图片细节间的相似度，让生成图片能更好的保留content图片的细节
+**亮点：**
+
+可以在保证不影响图片风格化的同时，控制生成图片与content图片细节间的相似度，让生成图片能更好的保留content图片的细节
 
